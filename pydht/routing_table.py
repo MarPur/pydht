@@ -2,9 +2,6 @@ import datetime
 
 BUCKET_SIZE = 8
 
-def set_bit(value, bit):
-    return value | (1 << bit)
-
 def _current_time():
     return datetime.datetime.now()
 
