@@ -6,6 +6,7 @@ from pydht import PyDhtApp, IncomingConnectionHandler
 
 logging.disable(logging.CRITICAL)
 
+
 class TestPyDhtApp(unittest.TestCase):
 
     def setUp(self):

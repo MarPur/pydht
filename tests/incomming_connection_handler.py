@@ -6,6 +6,7 @@ from pydht import IncomingConnectionHandler
 
 logging.disable(logging.CRITICAL)
 
+
 class TestIncomingConnectionHandler(unittest.TestCase):
 
     def setUp(self):
