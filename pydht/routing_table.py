@@ -2,10 +2,8 @@ import datetime
 
 BUCKET_SIZE = 8
 
-
 def set_bit(value, bit):
     return value | (1 << bit)
-
 
 def _current_time():
     return datetime.datetime.now()
@@ -28,6 +26,62 @@ class RoutingTable:
 
         self._our_id = our_id
 
+    def _truncate_id(self, node_id, length):
+        return (int.from_bytes(node_id, 'big') >> (160 - length) << (160 - length))
+
+    def _add_node(self, node_id, information, update_timestamp=True):
+        node_inserted = False
+
+        for (prefix, prefix_length), nodes in self._prefix_to_bucket.items():
+            # bits which are longer than the prefix, are set to 0 in node_id
+            # if the first prefix_length bits of the node_id match prefix, and the bucket
+            # is not full, then we add the node to the bucket.
+            # If the node_id falls in a bucket which is full and covers our id,
+            # we split the bucket and add the new node
+
+            truncated_node_id = self._truncate_id(node_id, prefix_length)
+
+            if truncated_node_id ^ prefix == 0:
+
+                if len(nodes) < self._bucket_size:
+                    info = information.copy()
+                    info['id'] = node_id
+
+                    if update_timestamp:
+                        info['last_contacted'] = _current_time()
+
+                    nodes.append(info)
+
+                    node_inserted = True
+                    break
+                else:
+                    our_truncated_id = self._truncate_id(self._our_id, prefix_length)
+
+                    # the node we are trying to add is our close neighbour who we care about
+                    # therefore we split bucket, by removing the list of nodes with existing bucket,
+                    # creating two new prefixes with 0 and 1 as additional bits we check for at the end
+                    # of the prefix and readding the removed nodes
+                    if our_truncated_id ^ prefix == 0:
+                        nodes_to_readd = nodes
+
+                        del self._prefix_to_bucket[(prefix, prefix_length)]
+
+                        self._prefix_to_bucket[(prefix, prefix_length + 1)] = []
+                        self._prefix_to_bucket[(prefix | (1 << (160 - prefix_length - 1)), prefix_length + 1)] = []
+
+                        # we are not contacting these nodese, so we do not want to update the timestamp
+                        # of when we last contacted them
+                        for node in nodes_to_readd:
+                            self._add_node(node['id'], node, update_timestamp=False)
+
+                        # this is a new node we just learnt about, therefore, we have to update its timestamp
+                        self._add_node(node_id, information, update_timestamp=True)
+
+                        node_inserted = True
+                        break
+
+        return node_inserted
+
     def add_node(self, node_id, information):
         """
         Attempts to insert a node into the routing table, so it could be retrieved later.
@@ -40,40 +94,7 @@ class RoutingTable:
         :rtype: bool
         """
 
-        node_inserted = False
-
-        for (prefix, prefix_length), nodes in self._prefix_to_bucket.items():
-            # bits which are longer than the prefix, are set to 0 in node_id
-
-            # if the first prefix_length bits of the node_id match prefix, and the bucket
-            # is not full, then we add the node to the bucket
-
-            truncated_node_id = (int.from_bytes(node_id, 'big') >> (160 - prefix_length) << (160 - prefix_length))
-
-            if truncated_node_id ^ prefix == 0 and len(nodes) < self._bucket_size:
-                info = information.copy()
-                info['id'] = node_id
-                info['last_contacted'] = _current_time()
-
-                nodes.append(info)
-
-                node_inserted = True
-
-
-        return node_inserted
-
-    def id_belongs_to_prefix(self, node_id, bucket_prefix):
-        """
-        Checks if the given `node_id` is covered by the `bucket_prefix`
-
-        :param node_id: Client's ID which is checked
-        :param bucket_prefix: ID Prefix of the bucket
-        :type node_id: bytes
-        :type bucket_prefix: bytes
-        :return: True if the `bucket_prefix` covers the `node_id` and False otherwise
-        :rtype: bool
-        """
-        pass
+        return self._add_node(node_id, information, update_timestamp=True)
 
     def touch_node(self, node_id):
         """

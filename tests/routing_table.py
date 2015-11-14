@@ -12,7 +12,7 @@ class TestAddNote(unittest.TestCase):
     """
 
     def setUp(self):
-        self.routing_table = RoutingTable(b'\xff' * 40)
+        self.routing_table = RoutingTable(b'\xff' * 20)
 
         self.datetime_patch = patch('pydht.routing_table._current_time', new=MagicMock(return_value=datetime(2015, 1, 7, 21, 15, 0)))
         self.datetime_patch.start()
@@ -27,22 +27,18 @@ class TestAddNote(unittest.TestCase):
         """
         # 000...0
         new_node_id = (0).to_bytes(20, 'big')
-        result = self.routing_table.add_node(new_node_id, {'key1': 'value1', 'key2': 'value2'})
+        was_added = self.routing_table.add_node(new_node_id, {'key1': 'value1', 'key2': 'value2'})
 
-        self.assertTrue(result)
+        self.assertTrue(was_added)
 
-        # Bucket 1 is empty
-        self.assertEqual(len(self.routing_table._prefix_to_bucket[(1 << 159, 1)]), 0)
-
-        # Bucket 0 has the added node
-        self.assertEqual(len(self.routing_table._prefix_to_bucket[(0, 1)]), 1)
-
-        node = self.routing_table._prefix_to_bucket[(0, 1)][0]
-        self.assertDictEqual(node, {
-            'id': new_node_id,
-            'key1': 'value1',
-            'key2': 'value2',
-            'last_contacted': datetime(2015, 1, 7, 21, 15, 0)
+        self.assertDictEqual(self.routing_table._prefix_to_bucket, {
+            (0, 1): [{
+                'id': new_node_id,
+                'key1': 'value1',
+                'key2': 'value2',
+                'last_contacted': datetime(2015, 1, 7, 21, 15, 0)
+            }],
+            (1 << 159, 1): []
         })
 
     def test_add_node_first_level_one_bucket(self):
@@ -52,22 +48,18 @@ class TestAddNote(unittest.TestCase):
         """
         new_node_id = (0 | 1 << 159).to_bytes(20, 'big')
 
-        result = self.routing_table.add_node(new_node_id, {'key1': 'value1', 'key2': 'value2'})
+        was_added = self.routing_table.add_node(new_node_id, {'key1': 'value1', 'key2': 'value2'})
 
-        self.assertTrue(result)
+        self.assertTrue(was_added)
 
-        # Bucket 0 is empty
-        self.assertEqual(len(self.routing_table._prefix_to_bucket[(0, 1)]), 0)
-
-        # Bucket 1 has the added node
-        self.assertEqual(len(self.routing_table._prefix_to_bucket[(1 << 159, 1)]), 1)
-
-        node = self.routing_table._prefix_to_bucket[(1 << 159, 1)][0]
-        self.assertDictEqual(node, {
-            'id': new_node_id,
-            'key1': 'value1',
-            'key2': 'value2',
-            'last_contacted': datetime(2015, 1, 7, 21, 15, 0)
+        self.assertDictEqual(self.routing_table._prefix_to_bucket, {
+            (0, 1): [],
+            (1 << 159, 1): [{
+                'id': new_node_id,
+                'key1': 'value1',
+                'key2': 'value2',
+                'last_contacted': datetime(2015, 1, 7, 21, 15, 0)
+            }]
         })
 
     def test_not_add_node_full_bucket(self):
@@ -79,10 +71,44 @@ class TestAddNote(unittest.TestCase):
         new_node_id = (0).to_bytes(20, 'big')
         self.routing_table._prefix_to_bucket[(0, 1)] = [{}] * self.routing_table._bucket_size
 
-        result = self.routing_table.add_node(new_node_id, {'key1': 'value1', 'key2': 'value2'})
+        was_added = self.routing_table.add_node(new_node_id, {'key1': 'value1', 'key2': 'value2'})
 
-        self.assertFalse(result)
+        self.assertFalse(was_added)
 
-        self.assertListEqual(self.routing_table._prefix_to_bucket[(1 << 159, 1)], [])
-        self.assertListEqual(self.routing_table._prefix_to_bucket[(0, 1)], [{}] * BUCKET_SIZE)
+        self.assertDictEqual(self.routing_table._prefix_to_bucket, {
+            (0, 1): [{}] * BUCKET_SIZE,
+            (1 << 159, 1): []
+        })
+
+    def test_split_bucket(self):
+        """
+        Tests that the bucket is split correctly, when the bucket is full and
+        the bucket's prefix covers our ID
+        """
+
+        self.routing_table = RoutingTable(b'\xff' * 20, bucket_size=2)
+
+        self.routing_table._prefix_to_bucket[(1 << 159, 1)] = [
+            # node_id: 101000...0
+            {'key1': 'node1', 'last_contacted': 1, 'id': (5 << 157).to_bytes(20, 'big')},
+            # node_id: 11000...0
+            {'key2': 'node2', 'last_contacted': 1, 'id': (6 << 157).to_bytes(20, 'big')}
+        ]
+
+        # 111000...0
+        new_node_id = (7 << 157).to_bytes(20, 'big')
+        
+        was_added = self.routing_table.add_node(new_node_id, {'key': 'value'})
+        
+        self.assertTrue(was_added)
+        self.assertDictEqual(self.routing_table._prefix_to_bucket, {
+            (0, 1): [],
+            (1 << 159, 2): [
+                {'key1': 'node1', 'last_contacted': 1, 'id': (5 << 157).to_bytes(20, 'big')}
+            ],
+            (3 << 158, 2): [
+                {'key2': 'node2', 'last_contacted': 1, 'id': (6 << 157).to_bytes(20, 'big')},
+                {'key': 'value', 'last_contacted': datetime(2015, 1, 7, 21, 15, 0), 'id': new_node_id}
+            ]
+        })
 
