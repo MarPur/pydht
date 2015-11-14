@@ -58,9 +58,9 @@ class RoutingTable:
                     our_truncated_id = self._truncate_id(self._our_id, prefix_length)
 
                     # the node we are trying to add is our close neighbour who we care about
-                    # therefore we split bucket, by removing the list of nodes with existing bucket,
+                    # therefore we split bucket by removing the bucket,
                     # creating two new prefixes with 0 and 1 as additional bits we check for at the end
-                    # of the prefix and readding the removed nodes
+                    # of the prefix, and adding back the removed nodes
                     if our_truncated_id ^ prefix == 0:
                         nodes_to_readd = nodes
 

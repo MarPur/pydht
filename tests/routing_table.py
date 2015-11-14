@@ -4,6 +4,9 @@ from unittest.mock import patch, MagicMock
 
 from pydht.routing_table import RoutingTable, BUCKET_SIZE
 
+to_bytes = lambda x: x.to_bytes(20, 'big')
+
+
 
 class TestAddNote(unittest.TestCase):
     """
@@ -26,7 +29,7 @@ class TestAddNote(unittest.TestCase):
         to the 0 bucket
         """
         # 000...0
-        new_node_id = (0).to_bytes(20, 'big')
+        new_node_id = to_bytes(0)
         was_added = self.routing_table.add_node(new_node_id, {'key1': 'value1', 'key2': 'value2'})
 
         self.assertTrue(was_added)
@@ -46,7 +49,7 @@ class TestAddNote(unittest.TestCase):
         Inserting a node with id 100...0 into the routing table. It should go
         to the 1 bucket
         """
-        new_node_id = (0 | 1 << 159).to_bytes(20, 'big')
+        new_node_id = to_bytes(1 << 159)
 
         was_added = self.routing_table.add_node(new_node_id, {'key1': 'value1', 'key2': 'value2'})
 
@@ -68,7 +71,7 @@ class TestAddNote(unittest.TestCase):
         the node belongs to, is full.
         """
 
-        new_node_id = (0).to_bytes(20, 'big')
+        new_node_id = to_bytes(0)
         self.routing_table._prefix_to_bucket[(0, 1)] = [{}] * self.routing_table._bucket_size
 
         was_added = self.routing_table.add_node(new_node_id, {'key1': 'value1', 'key2': 'value2'})
@@ -90,13 +93,13 @@ class TestAddNote(unittest.TestCase):
 
         self.routing_table._prefix_to_bucket[(1 << 159, 1)] = [
             # node_id: 101000...0
-            {'key1': 'node1', 'last_contacted': 1, 'id': (5 << 157).to_bytes(20, 'big')},
+            {'key1': 'node1', 'last_contacted': 1, 'id': to_bytes(5 << 157)},
             # node_id: 11000...0
-            {'key2': 'node2', 'last_contacted': 1, 'id': (6 << 157).to_bytes(20, 'big')}
+            {'key2': 'node2', 'last_contacted': 1, 'id': to_bytes(6 << 157)}
         ]
 
         # 111000...0
-        new_node_id = (7 << 157).to_bytes(20, 'big')
+        new_node_id = to_bytes(7 << 157)
         
         was_added = self.routing_table.add_node(new_node_id, {'key': 'value'})
         
@@ -104,10 +107,10 @@ class TestAddNote(unittest.TestCase):
         self.assertDictEqual(self.routing_table._prefix_to_bucket, {
             (0, 1): [],
             (1 << 159, 2): [
-                {'key1': 'node1', 'last_contacted': 1, 'id': (5 << 157).to_bytes(20, 'big')}
+                {'key1': 'node1', 'last_contacted': 1, 'id': to_bytes(5 << 157)}
             ],
             (3 << 158, 2): [
-                {'key2': 'node2', 'last_contacted': 1, 'id': (6 << 157).to_bytes(20, 'big')},
+                {'key2': 'node2', 'last_contacted': 1, 'id': to_bytes(6 << 157)},
                 {'key': 'value', 'last_contacted': datetime(2015, 1, 7, 21, 15, 0), 'id': new_node_id}
             ]
         })
