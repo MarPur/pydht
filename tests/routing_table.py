@@ -161,3 +161,31 @@ class TestRemoveNode(unittest.TestCase):
             ],
             (1 << 159, 1): []
         })
+
+
+class TestGetNode(unittest.TestCase):
+
+    def setUp(self):
+        self.routing_table = RoutingTable(b'\xff' * 20)
+
+    def test_gets_existing_node(self):
+        self.routing_table._prefix_to_bucket[(0, 1)] = [
+            {'id': b'\x00' * 20, 'key1': 'val1', 'key2': 'val2'}
+        ]
+
+        node = self.routing_table.get_node(b'\x00' * 20)
+
+        self.assertDictEqual(node, {
+            'id': b'\x00' * 20,
+            'key1': 'val1',
+            'key2': 'val2'
+        })
+
+    def test_tries_to_retrieve_non_existing_node(self):
+        self.routing_table._prefix_to_bucket[(0, 1)] = [
+            {'id': b'\x00' * 19 + b'\xff', 'key1': 'val1', 'key2': 'val2'}
+        ]
+
+        node = self.routing_table.get_node(b'\x00' * 20)
+
+        self.assertIsNone(node)

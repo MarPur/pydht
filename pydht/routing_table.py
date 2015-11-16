@@ -27,7 +27,6 @@ class RoutingTable:
         return (int.from_bytes(node_id, 'big') >> (160 - length) << (160 - length))
 
     def _add_node(self, node_id, information, update_timestamp=True):
-        node_inserted = False
 
         for (prefix, prefix_length), nodes in self._prefix_to_bucket.items():
             # bits which are longer than the prefix, are set to 0 in node_id
@@ -49,8 +48,7 @@ class RoutingTable:
 
                     nodes.append(info)
 
-                    node_inserted = True
-                    break
+                    return True
                 else:
                     our_truncated_id = self._truncate_id(self._our_id, prefix_length)
 
@@ -74,10 +72,9 @@ class RoutingTable:
                         # this is a new node we just learnt about, therefore, we have to update its timestamp
                         self._add_node(node_id, information, update_timestamp=True)
 
-                        node_inserted = True
-                        break
+                        return True
 
-        return node_inserted
+        return False
 
     def add_node(self, node_id, information):
         """
@@ -135,7 +132,20 @@ class RoutingTable:
 
         :param node_id: Node's ID
         :type node_id: bytes
-        :return: dictionary that was stored when node was created
+        :return: dictionary that was stored when node was created if the node is found. None otherwise
         :rtype: dict
         """
-        pass
+        for (prefix, prefix_length), nodes in self._prefix_to_bucket.items():
+            truncated_node_id = self._truncate_id(node_id, prefix_length)
+
+            if truncated_node_id ^ prefix == 0:
+
+                nodes_found = list(filter(
+                    lambda node: node['id'] == node_id,
+                    nodes
+                ))
+
+                if len(nodes_found) > 0:
+                    return nodes_found[0]
+
+        return None
