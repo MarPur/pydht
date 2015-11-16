@@ -88,16 +88,8 @@ class RoutingTable:
         :rtype: bool
         """
 
+        self.remove_node(node_id)
         return self._add_node(node_id, information, update_timestamp=True)
-
-    def touch_node(self, node_id):
-        """
-        Updates node's `last_contacted` timestamp to current timestamp
-
-        :param node_id: Node's ID
-        :type node_id: bytes
-        """
-        pass
 
     def remove_node(self, node_id):
         """

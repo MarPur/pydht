@@ -71,14 +71,14 @@ class TestAddNote(unittest.TestCase):
         """
 
         new_node_id = to_bytes(0)
-        self.routing_table._prefix_to_bucket[(0, 1)] = [{}] * self.routing_table._bucket_size
+        self.routing_table._prefix_to_bucket[(0, 1)] = [{'id': to_bytes(i)} for i in range(10, 10 + self.routing_table._bucket_size)]
 
         was_added = self.routing_table.add_node(new_node_id, {'key1': 'value1', 'key2': 'value2'})
 
         self.assertFalse(was_added)
 
         self.assertDictEqual(self.routing_table._prefix_to_bucket, {
-            (0, 1): [{}] * BUCKET_SIZE,
+            (0, 1): [{'id': to_bytes(i)} for i in range(10, 10 + self.routing_table._bucket_size)],
             (1 << 159, 1): []
         })
 
@@ -118,17 +118,17 @@ class TestAddNote(unittest.TestCase):
 class TestRemoveNode(unittest.TestCase):
 
     def setUp(self):
-        self.routing_table = RoutingTable(b'\xff' * 20)
+        self.routing_table = RoutingTable(to_bytes(0))
 
     def test_removes_existing_node(self):
         """
         Removes node which exists in the routing table
         """
 
-        node_id = b'\x00' * 20
+        node_id = to_bytes(0)
         self.routing_table._prefix_to_bucket[(0, 1)] = [
             {'id': node_id},
-            {'id': b'\x00' * 19 + b'\xff'}
+            {'id': to_bytes(255)}
         ]
 
         was_removed = self.routing_table.remove_node(node_id)
@@ -137,7 +137,7 @@ class TestRemoveNode(unittest.TestCase):
 
         self.assertDictEqual(self.routing_table._prefix_to_bucket, {
             (0, 1): [
-                {'id': (b'\x00' * 19) + b'\xff'}
+                {'id': to_bytes(255)}
             ],
             (1 << 159, 1): []
         })
@@ -148,16 +148,16 @@ class TestRemoveNode(unittest.TestCase):
         """
 
         self.routing_table._prefix_to_bucket[(0, 1)] = [
-            {'id': (b'\x00' * 19) + b'\xff'}
+            {'id': to_bytes(255)}
         ]
 
-        was_removed = self.routing_table.remove_node(b'\x00' * 20)
+        was_removed = self.routing_table.remove_node(to_bytes(0))
 
         self.assertFalse(was_removed)
 
         self.assertDictEqual(self.routing_table._prefix_to_bucket, {
             (0, 1): [
-                {'id': (b'\x00' * 19) + b'\xff'}
+                {'id': to_bytes(255)}
             ],
             (1 << 159, 1): []
         })
@@ -166,26 +166,26 @@ class TestRemoveNode(unittest.TestCase):
 class TestGetNode(unittest.TestCase):
 
     def setUp(self):
-        self.routing_table = RoutingTable(b'\xff' * 20)
+        self.routing_table = RoutingTable(to_bytes(0))
 
     def test_gets_existing_node(self):
         self.routing_table._prefix_to_bucket[(0, 1)] = [
-            {'id': b'\x00' * 20, 'key1': 'val1', 'key2': 'val2'}
+            {'id': to_bytes(0), 'key1': 'val1', 'key2': 'val2'}
         ]
 
-        node = self.routing_table.get_node(b'\x00' * 20)
+        node = self.routing_table.get_node(to_bytes(0))
 
         self.assertDictEqual(node, {
-            'id': b'\x00' * 20,
+            'id': to_bytes(0),
             'key1': 'val1',
             'key2': 'val2'
         })
 
     def test_tries_to_retrieve_non_existing_node(self):
         self.routing_table._prefix_to_bucket[(0, 1)] = [
-            {'id': b'\x00' * 19 + b'\xff', 'key1': 'val1', 'key2': 'val2'}
+            {'id': to_bytes(255), 'key1': 'val1', 'key2': 'val2'}
         ]
 
-        node = self.routing_table.get_node(b'\x00' * 20)
+        node = self.routing_table.get_node(to_bytes(0))
 
         self.assertIsNone(node)
