@@ -108,8 +108,26 @@ class RoutingTable:
 
         :param node_id: Node's ID
         :type node_id: bytes
+        :return: True if the node was removed from the routing table, False otherwise
+        :rtype: bool
         """
-        pass
+
+        was_removed = False
+
+        for (prefix, prefix_length), nodes in self._prefix_to_bucket.items():
+            truncated_node_id = self._truncate_id(node_id, prefix_length)
+
+            if truncated_node_id ^ prefix == 0:
+
+                self._prefix_to_bucket[(prefix, prefix_length)] = list(filter(
+                    lambda node: node['id'] != node_id,
+                    nodes
+                ))
+
+                was_removed = was_removed or len(self._prefix_to_bucket[(prefix, prefix_length)]) != len(nodes)
+
+        return was_removed
+
 
     def get_node(self, node_id):
         """

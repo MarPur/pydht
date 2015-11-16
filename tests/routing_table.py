@@ -7,7 +7,6 @@ from pydht.routing_table import RoutingTable, BUCKET_SIZE
 to_bytes = lambda x: x.to_bytes(20, 'big')
 
 
-
 class TestAddNote(unittest.TestCase):
     """
     Test Suite to check if the Routing Table correctly inserts a node
@@ -115,3 +114,50 @@ class TestAddNote(unittest.TestCase):
             ]
         })
 
+
+class TestRemoveNode(unittest.TestCase):
+
+    def setUp(self):
+        self.routing_table = RoutingTable(b'\xff' * 20)
+
+    def test_removes_existing_node(self):
+        """
+        Removes node which exists in the routing table
+        """
+
+        node_id = b'\x00' * 20
+        self.routing_table._prefix_to_bucket[(0, 1)] = [
+            {'id': node_id},
+            {'id': b'\x00' * 19 + b'\xff'}
+        ]
+
+        was_removed = self.routing_table.remove_node(node_id)
+
+        self.assertTrue(was_removed)
+
+        self.assertDictEqual(self.routing_table._prefix_to_bucket, {
+            (0, 1): [
+                {'id': (b'\x00' * 19) + b'\xff'}
+            ],
+            (1 << 159, 1): []
+        })
+
+    def test_remove_non_existing_node(self):
+        """
+        Tries to remove a node which does not exist in the routing table
+        """
+
+        self.routing_table._prefix_to_bucket[(0, 1)] = [
+            {'id': (b'\x00' * 19) + b'\xff'}
+        ]
+
+        was_removed = self.routing_table.remove_node(b'\x00' * 20)
+
+        self.assertFalse(was_removed)
+
+        self.assertDictEqual(self.routing_table._prefix_to_bucket, {
+            (0, 1): [
+                {'id': (b'\x00' * 19) + b'\xff'}
+            ],
+            (1 << 159, 1): []
+        })
