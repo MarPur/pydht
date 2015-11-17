@@ -4,7 +4,7 @@ import logging
 import uuid
 
 from .incoming_connection_handler import IncomingConnectionHandler
-
+from .routing_table import RoutingTable
 
 class PyDhtApp:
 
@@ -13,6 +13,7 @@ class PyDhtApp:
 
         self.client_id = hashlib.sha1(generated_id.bytes).digest()
         self.incoming_connection_handler = None
+        self.routing_table = RoutingTable(self.client_id)
 
     @asyncio.coroutine
     def start(self, loop):
@@ -27,7 +28,8 @@ class PyDhtApp:
 
         try:
             transaction_id = request.get('t')
-        except AttributeError:
+            requestor_id = request['a']['id']
+        except (AttributeError, KeyError):
             logging.warning('Malformed request. Could not get Transaction ID')
         else:
             response = {
@@ -40,3 +42,5 @@ class PyDhtApp:
             logging.info('Sending response %s', response)
 
             self.incoming_connection_handler.respond(response, sender)
+
+            self.routing_table.add_node(requestor_id, {'source': sender})

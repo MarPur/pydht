@@ -1,8 +1,11 @@
 from datetime import datetime
+import logging
 import unittest
 from unittest.mock import patch, MagicMock
 
-from pydht.routing_table import RoutingTable, BUCKET_SIZE
+from pydht.routing_table import RoutingTable
+
+logging.disable(logging.CRITICAL)
 
 to_bytes = lambda x: x.to_bytes(20, 'big')
 

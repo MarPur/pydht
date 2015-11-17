@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 BUCKET_SIZE = 8
 
@@ -46,6 +47,7 @@ class RoutingTable:
                     if update_timestamp:
                         info['last_contacted'] = _current_time()
 
+                    logging.info('Added node %s to (%s, %d) bucket', node_id, bin(prefix), prefix_length)
                     nodes.append(info)
 
                     return True
@@ -88,6 +90,7 @@ class RoutingTable:
         :rtype: bool
         """
 
+        logging.info('adding node %s', node_id)
         self.remove_node(node_id)
         return self._add_node(node_id, information, update_timestamp=True)
 
@@ -116,7 +119,6 @@ class RoutingTable:
                 was_removed = was_removed or len(self._prefix_to_bucket[(prefix, prefix_length)]) != len(nodes)
 
         return was_removed
-
 
     def get_node(self, node_id):
         """
