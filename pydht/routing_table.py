@@ -143,3 +143,14 @@ class RoutingTable:
                     return nodes_found[0]
 
         return None
+
+    def get_closest_nodes(self, node_id):
+        """
+        Gets a list of nodes (up to maaximum of the size of the bucket), which are closest to the `node_id`
+        :param node_id: Node's ID to use to get the closest neighbours to
+        :type node_id: bytes
+        :return: list
+        :rtype: a list of dictionaries with the information about the closest neighbours
+        """
+
+        return []
